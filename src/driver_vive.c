@@ -2067,29 +2067,32 @@ static int parse_and_process_raw1_lightcap(SurviveObject *obj, uint16_t time, ui
 	while (idx < length) {
 		uint8_t data = packet[idx];
 
-		if (data & 0x1u) {
-			// Since they flag for this; I assume multiples can appear in a single packet. Need to plug in
-			// second LH to find out...
-
-			if ((data & 0x0Au) != 0) {
-				// Currently I've only ever seen 0x1 if the 1 bit is set; I doubt they left 3 bits on the table
-				// though....
-				SV_WARN("Not entirely sure what this data is; errors may occur (%d, 0x%02x)\n", idx, data);
-				dump_binary = true;
-				// has_errors = true;
-				goto exit_loop;
-			}
-
-			// encodes like so: 0bcccc ?F?C
-			bool hasConflict = data & 0x04u;
-			if (hasConflict) {
-				uint8_t conflicted_channel = data >> 4u;
-				SV_WARN("Two or more lighthouses are on channel %d; tracking is most likely going to fail.",
-						conflicted_channel);
-			}
-			channel = data >> 4u;
-			SV_VERBOSE(750, "%s Channel %d (0x%02x)", obj->codename, channel, data);
-			idx++;
+		if(data&1)
+		{
+		  if((data&0xf)==3) // these come out when you turn on verbose
+		    idx+=4;
+		  else if((data&0xf)==1)
+		  {
+		    bool hasConflict=data&0x04u;
+		    if (hasConflict)
+		    {
+		      uint8_t conflicted_channel=data>>4u;
+		      SV_WARN("Two or more lighthouses are on channel %d; tracking is most likely going to fail.",
+			      conflicted_channel);
+		    }
+		    channel=data>>4u;
+		    SV_VERBOSE(750, "%s Channel %d (0x%02x)", obj->codename, channel, data);
+		    idx++;
+		  }
+		  else
+		  {
+// Currently I've only ever seen 0x1 if the 1 bit is set; I doubt they left 3 bits on the table
+// though....
+		    SV_WARN("Not entirely sure what this data is; errors may occur (%d, 0x%02x)\n", idx, data);
+		    dump_binary = true;
+// has_errors = true;
+		    goto exit_loop;
+		  }
 		} else {
 			uint32_t timecode = 0;
 			memcpy(&timecode, packet + idx, sizeof(uint32_t));
